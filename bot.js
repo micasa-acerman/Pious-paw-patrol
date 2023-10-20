@@ -35,7 +35,7 @@ bot.onText(/\/start/, (msg) => {
         }
     };
 
-    bot.sendMessage(chatId, "Добро пожаловать! Разрешишь мне побыть с Вами!", options);
+    bot.sendMessage(chatId, "Добро пожаловать! Разрешишь мне побыть с Вами?", options);
 });
 
 bot.onText(/Разрешаю!/, (msg) => {
