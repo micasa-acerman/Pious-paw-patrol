@@ -113,8 +113,8 @@ function createQuiz(item, msg) {
 }
 
 function createSurvey(survey, msg) {
-    if(msg) bot.sendPoll(msg.chat.id, survey.text, survey.options, { is_anonymous: false, allows_multiple_answers: false, type: 'quiz', correct_option_id: 0, explanation: survey.explanation, disable_notification: false })
-    else chat_ids.map(cid => bot.sendPoll(cid, survey.text, survey.options, { is_anonymous: false, allows_multiple_answers: false, type: 'quiz', correct_option_id: 0, explanation: survey.explanation, disable_notification: false }))
+    if(msg) bot.sendPoll(msg.chat.id, survey.text, survey.options, { is_anonymous: false, allows_multiple_answers: false, type: 'regular', correct_option_id: 0, explanation: survey.explanation, disable_notification: false })
+    else chat_ids.map(cid => bot.sendPoll(cid, survey.text, survey.options, { is_anonymous: false, allows_multiple_answers: false, type: 'regular', correct_option_id: 0, explanation: survey.explanation, disable_notification: false }))
 }
 
 function distributeUsers(_survey, msg) {
