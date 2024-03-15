@@ -1,4 +1,5 @@
 const TelegramBot = require('node-telegram-bot-api');
+const fs = require('fs');
 const { saveData, loadData, dayOfWeek } = require('./utils');
 require('dotenv').config();
 
@@ -7,11 +8,12 @@ const CHAT_DATA_FILENAME = process.env.CHAT_DATA_FILENAME;
 const CHAT_USERS_FILENAME = process.env.CHAT_USERS_FILENAME;
 const QUIZ_FILENAME = process.env.QUIZ_FILENAME;
 const SHEDULE_INTERVAL = process.env.SHEDULE_INTERVAL;
+const ADMIN_USERNAME = process.env.UNAME;
 
 
 const bot = new TelegramBot(TOKEN, { polling: true });
 const quiz = loadData(QUIZ_FILENAME)
-const users = loadData(CHAT_USERS_FILENAME)
+let users = loadData(CHAT_USERS_FILENAME)
 var chat_ids = loadData(CHAT_DATA_FILENAME).filter(isBotInChat)
 
 const shedule = [
@@ -38,7 +40,7 @@ bot.onText(/\/start/, (msg) => {
     bot.sendMessage(chatId, "Добро пожаловать! Разрешишь мне побыть с Вами?", options);
 });
 
-bot.onText(/Разрешаю!/, (msg) => {
+bot.onText(/Разрешаю!/, (msg, ...p) => {
     const chatId = msg.chat.id;
 
     if (chat_ids.includes(chatId)) {
@@ -48,6 +50,36 @@ bot.onText(/Разрешаю!/, (msg) => {
         chat_ids = [...chat_ids, msg.chat.id]
         const pairs = createPrayerPairs(users);
         bot.sendMessage(chatId, "Отлично! Теперь я буду с Вами!\r\n" + formatPrayerPairsMessage(pairs));
+    }
+});
+
+
+bot.on('message', (msg) => {
+    if (msg.document && msg.document.file_name.endsWith('.txt') && msg.from.username === ADMIN_USERNAME) {
+        bot.downloadFile(msg.document.file_id, './').then((filePath) => {
+            fs.readFile(filePath, 'utf8', (err, data) => {
+                if (err) {
+                    console.error('Error reading the file:', err);
+                    fs.unlink(filePath)
+                    return bot.sendMessage(msg.chat.id, 'Failed to read the file.');
+                }
+
+                try {
+                    const jsonData = JSON.parse(data);
+                    
+                    if(Array.isArray(jsonData) && (jsonData.length === 0 || jsonData.some(x=>!(x.hasOwnProperty('username') && x.hasOwnProperty('name')))) ){
+                        throw new Error('Invalid format')
+                    }
+                    fs.renameSync(filePath, changeFilename(filePath, CHAT_USERS_FILENAME))
+                    bot.sendMessage(msg.chat.id, 'The users file is validated and changed.');
+                    users = jsonData
+                } catch (e) {
+                    console.error('Error parsing JSON:', e);
+                    fs.unlink(filePath,()=>{})
+                    bot.sendMessage(msg.chat.id, 'The file does not contain valid JSON.');
+                }
+            });
+        });
     }
 });
 
@@ -117,7 +149,7 @@ function createSurvey(survey, msg) {
     else chat_ids.map(cid => bot.sendPoll(cid, survey.text, survey.options, { is_anonymous: false, allows_multiple_answers: false, type: 'regular', correct_option_id: 0, explanation: survey.explanation, disable_notification: false }))
 }
 
-function distributeUsers(_survey, msg) {
+async function distributeUsers(_survey, msg) {
     const pairs = createPrayerPairs(users);
     if (msg) {
         bot.sendMessage(msg.chat.id, formatPrayerPairsMessage(pairs));
@@ -137,3 +169,9 @@ async function isBotInChat(chatId) {
         return false
     }
 }
+
+function changeFilename(filePath, fileName) {
+    const pathParts = filePath.split('/');
+    pathParts[pathParts.length - 1] = fileName;
+    return pathParts.join('.');
+  }
